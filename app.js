@@ -62,7 +62,7 @@ app.post('/create-user/otp-generation', async (req, res) => {
             const newUser = new userLoginModel(data);
             await newUser.save();
             //need to change the mail id accordingly
-            await sendMailHelper("siashwin2005@gmail.com", OTP )
+            await sendMailHelper(req.body.email, OTP )
             res.status(200).json({message : "user created successfully"});
         }else{
             res.status(404).json({message : "user already exist"});
@@ -171,6 +171,7 @@ app.delete("/:email/folder/delete",async (req,res) =>{
 //router to get all the question in the folder
 app.get("/:email/:folder_name",async (req,res) =>{
     const data = await userDetailsModel.findOne({email : req.params.email})
+    console.log(data)
     const allQuestions = data.AllFolders.filter((element) =>{
         return element.FolderName === req.params.folder_name;
     })
@@ -188,7 +189,7 @@ app.post("/:email/:folder_name/update", async (req, res) => {
             (element) => element.FolderName === req.params.folder_name
         );
         // Create the question object
-        data.AllFolders[folderIndex].Questions = req.body.allQuestion;
+        data.AllFolders[folderIndex].Questions = req.body.allQuestions;
 
         await data.save();
         res.status(200).json({ message: "Folder updated successfully" });

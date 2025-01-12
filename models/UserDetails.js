@@ -2,7 +2,7 @@ const mongoose = require('mongoose');
 const userLoginSchema = require("./UserLogin");
 
 const QuestionSchema = mongoose.Schema({
-    date:{
+    Date:{
         type: Date,
         default: Date.now
     },

@@ -26,20 +26,21 @@ app.post("/create-user", async (req, res) => {
     try{
         const hashPassword = await EncryptPasswordHelper(req.body.password);
 
-        const user = await userLoginModel.find({
-            email : req.body.email,
-        })
-        user.password = hashPassword;
         const newUserDetails = new userDetailsModel({
             email : req.body.email,
         })
 
-        await user.save();
+        await userLoginModel.findOneAndUpdate({
+            email : req.body.email
+        },{
+            password: hashPassword,
+        })
         await newUserDetails.save();
         res.status(200).json({message : "user created successfully"});
     }
-    catch {
+    catch(e) {
         res.status(401).json({message : "Internal server error"});
+        console.log(e)
     }
 
 })
@@ -64,7 +65,7 @@ app.post('/create-user/otp-generation', async (req, res) => {
             await sendMailHelper("siashwin2005@gmail.com", OTP )
             res.status(200).json({message : "user created successfully"});
         }else{
-            res.status(401).json({message : "user already exist"});
+            res.status(404).json({message : "user already exist"});
         }
     }catch (e){
         res.status(401).json({message : "Internal server error"});
@@ -75,32 +76,37 @@ app.post('/create-user/otp-generation', async (req, res) => {
 
 //router to verify the otp generated
 app.post("/create-user/otp-verification", async (req, res) => {
-    const data = await userLoginModel.findOne({
-        email : req.body.email,
-    })
-    if(data.OTP === parseInt(req.body.otp)){
-        res.status(200).json({message : "OTP Correct"});
-    }else{
-        res.status(401).json({message : "OTP incorrect"});
+    try{
+        const data = await userLoginModel.findOne({
+            email : req.body.email,
+        })
+        if(data.OTP === parseInt(req.body.otp)){
+            res.status(200).json({message : "OTP Correct"});
+        }else{
+            res.status(404).json({message : "OTP incorrect"});
+        }
+    }catch(e) {
+        res.status(401).json({message: "Internal server error"});
     }
-
 })
+
 //router to login
 app.post("/login", async (req, res) => {
     try{
         const data = await userLoginModel.find({email : req.body.email});
         if(data.length > 0){
             const result = await ComparePasswordHelper(req.body.password, data[0].password);
+            const hash = await EncryptPasswordHelper(req.body.password);
             if(result){
                 res.status(200).json({
                     message : "User logged in successfully"
                 })
             }else{
-                res.status(200).json({message : "password incorrect"});
+                res.status(404).json({message : "password incorrect"});
             }
 
         }else{
-            res.status(401).json({message : "User doesn't exist"});
+            res.status(406).json({message : "User doesn't exist"});
         }
     }catch (e){
         res.status(401).json({message : "Internal server error"});
@@ -110,21 +116,36 @@ app.post("/login", async (req, res) => {
 
 //router to get all folders in the database and show in dashboard
 app.get('/:email/folder-dashboard', async (req, res) => {
-    const data = await userDetailsModel.findOne({email: req.params.email});
-    const allFolders = data.AllFolders;
-    res.send(allFolders);
-})
+    try {
+        const user = await userDetailsModel.findOne({ email: req.params.email });
+        if (!user) {
+            return res.status(404).json({ error: "User not found" });
+        }
+        res.json({ allFolders: user.AllFolders });
+    } catch (err) {
+        console.error("Error fetching user data:", err);
+        res.status(500).json({ error: "Internal Server Error" });
+    }
+});
 
 //router to create a folder
 app.post("/:email/folder/create",async (req, res) => {
     try{
         const data = await userDetailsModel.findOne({ email : req.params.email });
         const allFolders = data.AllFolders;
-        allFolders.push({FolderName : req.body.folder_name})
-        await data.save();
-        res.status(200).json({message : "folder created"})
+        const names = allFolders.map((element) =>{
+           return element.FolderName
+        })
+        if(names.includes(req.body.folder_name)){
+            res.status(409).json({message : "folder exsist"})
+        }else{
+            allFolders.push({FolderName : req.body.folder_name})
+            await data.save();
+            res.status(200).json({message : "folder created"})
+        }
     }
     catch (e) {
+        console.log(e);
         res.status(401).json({message : "Internal server error"});
     }
 })

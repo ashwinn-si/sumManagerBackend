@@ -12,7 +12,7 @@ require("dotenv").config();
 
 const app = express();
 app.use(bodyParser.json());
-app.use(cors({ origin: "https://sum-tracker-brown.vercel.app" }));
+app.use(cors());
 
 const mongooseUrl = process.env.MONGODB_URL;
 

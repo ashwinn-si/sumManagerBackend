@@ -1,7 +1,22 @@
 const mongoose = require('mongoose');
 const userLoginSchema = require("./UserLogin");
 
+const SnippetSchema = mongoose.Schema({
+    image: {
+        type: String,
+        default:""
+    },
+    code :{
+        type: String,
+        default:""
+    }
+});
+
 const QuestionSchema = mongoose.Schema({
+    CreateDate:{
+      type: Date,
+      default: Date.now
+    },
     Date:{
         type: Date,
         default: Date.now
@@ -16,6 +31,13 @@ const QuestionSchema = mongoose.Schema({
     Revise : {
         type : Boolean,// true -> need to revise | false -> no need to revise
         default : false
+    },
+    Snippet : {
+        type : SnippetSchema,
+        default : {
+            image : "",
+            code : "",
+        }
     }
 });
 

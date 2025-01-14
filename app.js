@@ -8,11 +8,13 @@ const userLoginModel = require("./models/UserLogin");
 const userDetailsModel = require("./models/UserDetails");
 const sendMailHelper = require("./NodeMailer/Mailer");
 const generateOTP = require("./Scripts/OTPGenerator");
+const res = require("express/lib/response");
 require("dotenv").config();
 
 const app = express();
 app.use(bodyParser.json());
 app.use(cors({ origin: "https://sum-tracker-brown.vercel.app" }));
+// app.use(cors());
 
 const mongooseUrl = process.env.MONGODB_URL;
 
@@ -40,7 +42,7 @@ app.post("/create-user", async (req, res) => {
     }
     catch(e) {
         res.status(401).json({message : "Internal server error"});
-        console.log(e)
+
     }
 
 })
@@ -114,6 +116,33 @@ app.post("/login", async (req, res) => {
 
 })
 
+//router for forgot password
+app.get("/:email/forgot-password", async (req, res) => {
+    try{
+        const user = await userLoginModel.findOne({email : req.params.email})
+        if(user.length > 0){
+            const OTP = generateOTP();
+            await userLoginModel.findOneAndUpdate({email : req.params.email , OTP})
+            await sendMailHelper(req.body.email, OTP)
+            res.status(200).json({message : "otp generated successfully"});
+        }else{
+            res.status(404).json({message : "user does not exist"});
+        }
+    }catch (e){
+        res.status(401).json({message : "Internal server error"});
+    }
+})
+
+app.post("/:email/forgot-password/reset", async (req, res) => {
+    const hashPassword = await EncryptPasswordHelper(req.body.password);
+    await userLoginModel.findOneAndUpdate({
+        email : req.body.email
+    },{
+        password: hashPassword,
+    })
+    res.status(200).json({message : "reset"});
+})
+
 //router to get all folders in the database and show in dashboard
 app.get('/:email/folder-dashboard', async (req, res) => {
     try {
@@ -145,7 +174,7 @@ app.post("/:email/folder/create",async (req, res) => {
         }
     }
     catch (e) {
-        console.log(e);
+
         res.status(401).json({message : "Internal server error"});
     }
 })
@@ -171,7 +200,7 @@ app.delete("/:email/folder/delete",async (req,res) =>{
 //router to get all the question in the folder
 app.get("/:email/:folder_name",async (req,res) =>{
     const data = await userDetailsModel.findOne({email : req.params.email})
-    console.log(data)
+
     const allQuestions = data.AllFolders.filter((element) =>{
         return element.FolderName === req.params.folder_name;
     })
@@ -199,6 +228,51 @@ app.post("/:email/:folder_name/update", async (req, res) => {
     }
 });
 
+//forgotPassword Route
+app.post("/:email/forgot-password", async (req, res) => {
+    try {
+        const data = await userLoginModel.find({ email: req.params.email });
+
+        if (data.length > 0) {
+            return res.status(200).json({ message: "email already exist" }); // Return after sending response
+        }
+
+        return res.status(404).json({ message: "email does not exist" }); // Return after sending response
+    } catch (e) {
+        return res.status(500).json({ message: "Internal server error" }); // Return after sending response
+    }
+});
+
+app.post("/:email/forgot-password/generateOTP", async (req, res) => {
+    try {
+        const data = await userLoginModel.findOne({email: req.params.email});
+        data.OTP = generateOTP();
+        await data.save();
+        await sendMailHelper(req.params.email, data.OTP)
+        res.status(200).json({message : "email generated successfully"});
+    }catch(e){
+        res.status(500).json({message:"Internal server error"});
+    }
+})
+
+//snippet route
+// app.get("/:email/:folder_name/:quesiton_id",async (req,res) =>{
+//     const allData = await userDetailsModel.findOne({email : req.params.email})
+//
+//     const folderData = allData.AllFolders.filter((element) =>{
+//         return element.FolderName === req.params.folder_name;
+//     })
+//
+//     const allQuestions = folderData[0].Questions;
+//
+//     const questionData = allQuestions.filter((element) =>{
+//         return (element._id.toString() === req.params.quesiton_id)
+//     })
+//
+//     const snippetData = questionData[0].Snippet;
+//
+//     res.send(snippetData);
+// })
 
 mongoose
     .connect(mongooseUrl)

@@ -6,15 +6,19 @@ const  EncryptPasswordHelper = require("./Scripts/EncryptionScripts");
 const ComparePasswordHelper = require("./Scripts/CompareScripts");
 const userLoginModel = require("./models/UserLogin");
 const userDetailsModel = require("./models/UserDetails");
+const ImageModel = require("./models/ImageStorage");
 const sendMailHelper = require("./NodeMailer/Mailer");
 const generateOTP = require("./Scripts/OTPGenerator");
-const res = require("express/lib/response");
+const multer = require("multer");
+const upload = multer({ storage: multer.memoryStorage() });
 require("dotenv").config();
 
 const app = express();
 app.use(bodyParser.json());
-app.use(cors({ origin: "https://sum-tracker-brown.vercel.app" }));
-// app.use(cors());
+// app.use(cors({ origin: "https://sum-tracker-brown.vercel.app" }));
+app.use(cors());
+app.use(express.json({ limit: '100mb', extended: true }));
+app.use(express.urlencoded({ limit: '100mb', extended: true, parameterLimit: 50000 }));
 
 const mongooseUrl = process.env.MONGODB_URL;
 
@@ -207,6 +211,21 @@ app.get("/:email/:folder_name",async (req,res) =>{
     res.send(allQuestions[0].Questions);
 })
 
+//router to get the images details in the folder
+app.post("/:email/:folder_name/image-details",async (req,res) =>{
+    try{
+        const data = await userDetailsModel.findOne({email : req.params.email})
+        const allQuestions = data.AllFolders.filter((element) =>{
+            return element.FolderName === req.params.folder_name;
+        })
+        const imageData = allQuestions[0].Questions.map(element =>{
+            return element.Snippet.image
+        })
+        res.json({data : imageData})
+    }catch (e) {
+        res.status(401).json({message : "Internal server error"});
+    }
+})
 //router to update the question in the folder
 app.post("/:email/:folder_name/update", async (req, res) => {
     try {
@@ -255,24 +274,46 @@ app.post("/:email/forgot-password/generateOTP", async (req, res) => {
     }
 })
 
-//snippet route
-// app.get("/:email/:folder_name/:quesiton_id",async (req,res) =>{
-//     const allData = await userDetailsModel.findOne({email : req.params.email})
-//
-//     const folderData = allData.AllFolders.filter((element) =>{
-//         return element.FolderName === req.params.folder_name;
-//     })
-//
-//     const allQuestions = folderData[0].Questions;
-//
-//     const questionData = allQuestions.filter((element) =>{
-//         return (element._id.toString() === req.params.quesiton_id)
-//     })
-//
-//     const snippetData = questionData[0].Snippet;
-//
-//     res.send(snippetData);
-// })
+//snippet image router
+app.post("/store-image", upload.single("image"), async (req, res) => {
+    const newImage = new ImageModel(
+        {
+            image: req.file
+                ? { data: req.file.buffer, contentType: req.file.mimetype }
+                : undefined,
+        }
+    );
+    await newImage.save().then((data)=>{
+        res.status(200).json({message : data._id});
+    })
+})
+
+app.post("/store-image/:id", async (req, res) => {
+    const imageId = req.params.id;// Get the image ID from the URL
+    try {
+        // Fetch the image by its ID
+        const imageData = await ImageModel.findById(imageId);
+        //converting to based 64
+        let imageBase64 = null;
+        if(imageData.image && imageData.image.data){
+            imageBase64 = imageData.image.data.toString('base64');
+        }
+        res.json({image:  imageBase64});
+    } catch (err) {
+        console.error(err);
+        res.status(500).send('Error retrieving image');
+    }
+})
+
+app.delete("/store-image/delete/:id",async (req,res) =>{
+    try{
+        await ImageModel.findByIdAndDelete(req.params.id);
+        res.status(200).json({message : "Image deleted successfully"});
+    }catch(e){
+        res.status(404).json({message : "Internal server error"});
+    }
+
+})
 
 mongoose
     .connect(mongooseUrl)

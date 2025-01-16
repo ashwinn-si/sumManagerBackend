@@ -1,5 +1,4 @@
 const mongoose = require('mongoose');
-const userLoginSchema = require("./UserLogin");
 
 const SnippetSchema = mongoose.Schema({
     image: {
@@ -38,6 +37,10 @@ const QuestionSchema = mongoose.Schema({
             image : "",
             code : "",
         }
+    },
+    Note : {
+        type : String,
+        default : ""
     }
 });
 

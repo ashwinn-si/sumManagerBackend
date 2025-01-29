@@ -8,6 +8,10 @@ const SnippetSchema = mongoose.Schema({
     code :{
         type: String,
         default:""
+    },
+    language : {
+        type : String,
+        default : "text"
     }
 });
 

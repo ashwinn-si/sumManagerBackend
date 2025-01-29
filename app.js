@@ -58,6 +58,7 @@ app.post('/create-user/otp-generation', async (req, res) => {
         const users = await userLoginModel.find({
             email : req.body.email,
         })
+        console.log(req.body.email);
         if(users.length === 0){
             const OTP = generateOTP();
             const data = {
@@ -110,7 +111,6 @@ app.post("/login", async (req, res) => {
             }else{
                 res.status(404).json({message : "password incorrect"});
             }
-
         }else{
             res.status(406).json({message : "User doesn't exist"});
         }
